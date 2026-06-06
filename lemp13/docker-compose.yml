@@ -1,0 +1,76 @@
+# PAwChO - Laboratorium 13 - zadanie OBOWIAZKOWE
+# Stack LEMP (Linux + Nginx + MySQL + PHP) wraz z phpMyAdmin.
+# Cztery mikrouslugi (kontenery): nginx, php, mysql, phpmyadmin.
+services:
+
+  # E w LEMP - serwer WWW Nginx. Jedyna usluga wystawiona "na swiat".
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: lemp_nginx
+    ports:
+      - "4001:80"            # port 4001 na hoscie -> 80 w kontenerze
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./src:/var/www/html:ro
+    depends_on:
+      - php
+    networks:
+      - frontend            # dostep z zewnatrz
+      - backend             # komunikacja z PHP-FPM
+    restart: unless-stopped
+
+  # P w LEMP - PHP-FPM. Obraz budowany z php:8.3-fpm + rozszerzenie mysqli.
+  php:
+    build: ./php
+    image: lemp-php:8.3-fpm
+    container_name: lemp_php
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_DATABASE: lempdb
+      MYSQL_USER: lempuser
+      MYSQL_PASSWORD: lemppass
+    volumes:
+      - ./src:/var/www/html
+    depends_on:
+      - mysql
+    networks:
+      - backend             # tylko siec wewnetrzna
+    restart: unless-stopped
+
+  # M w LEMP - baza danych MySQL.
+  mysql:
+    image: mysql:8.4
+    container_name: lemp_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: lempdb
+      MYSQL_USER: lempuser
+      MYSQL_PASSWORD: lemppass
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - backend             # niedostepna z zewnatrz
+    restart: unless-stopped
+
+  # Klient WWW bazy danych - phpMyAdmin.
+  phpmyadmin:
+    image: phpmyadmin:5.2
+    container_name: lemp_phpmyadmin
+    ports:
+      - "6001:80"           # panel dostepny na http://localhost:6001
+    environment:
+      PMA_HOST: mysql       # do ktorego serwera DB sie laczy
+      PMA_PORT: 3306
+      UPLOAD_LIMIT: 64M
+    depends_on:
+      - mysql
+    networks:
+      - backend             # musi byc w backend, bo laczy sie z mysql
+    restart: unless-stopped
+
+volumes:
+  db_data:                  # trwale przechowywanie danych MySQL
+
+networks:
+  frontend:                 # warstwa publiczna (Nginx)
+  backend:                  # warstwa wewnetrzna (php, mysql, phpmyadmin)

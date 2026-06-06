@@ -1,0 +1,16 @@
+# PAwChO - Laboratorium 14 - plik OVERRIDE (mechanizm merge)
+# Zawiera wylacznie ustawienia SPECYFICZNE dla danego srodowiska docelowego.
+# Tutaj: publikacja portow na zewnatrz (dev/local). W innym srodowisku
+# (np. CI, staging) wystarczy podmienic ten plik, nie ruszajac pliku bazowego.
+#
+# Compose laczy te definicje z plikiem bazowym wg regul specyfikacji Compose
+# (skalarne wartosci sa nadpisywane, listy - laczone).
+services:
+
+  nginx:
+    ports:
+      - "4001:80"        # Nginx wystawiony na swiat na porcie 4001
+
+  phpmyadmin:
+    ports:
+      - "6001:80"        # panel phpMyAdmin na porcie 6001

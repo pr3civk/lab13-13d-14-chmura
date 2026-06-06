@@ -1,0 +1,95 @@
+# PAwChO - Laboratorium 13D - zadanie NIEOBOWIAZKOWE
+# Ten sam stack LEMP co w lab13, ale dane wrazliwe (hasla, uzytkownik DB)
+# sa przekazywane przez mechanizm Docker secrets, a nie zmienne srodowiskowe.
+#
+# Proces dwuetapowy:
+#  1) top-level "secrets" wiaze nazwe sekretu z plikiem zrodlowym,
+#  2) atrybut "secrets" w usludze montuje sekret w /run/secrets/<nazwa>,
+#     a obraz odczytuje go przez konwencje <ZMIENNA>_FILE.
+services:
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: lemp_nginx
+    ports:
+      - "4001:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./src:/var/www/html:ro
+    depends_on:
+      - php
+    networks:
+      - frontend
+      - backend
+    restart: unless-stopped
+
+  php:
+    build: ./php
+    image: lemp-php:8.3-fpm
+    container_name: lemp_php
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_DATABASE: lempdb
+      # zamiast jawnych wartosci - sciezki do zamontowanych sekretow
+      MYSQL_USER_FILE: /run/secrets/mysql_user
+      MYSQL_PASSWORD_FILE: /run/secrets/mysql_password
+    volumes:
+      - ./src:/var/www/html
+    depends_on:
+      - mysql
+    networks:
+      - backend
+    secrets:
+      - mysql_user
+      - mysql_password
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.4
+    container_name: lemp_mysql
+    environment:
+      MYSQL_DATABASE: lempdb
+      # obraz mysql wspiera konwencje _FILE dla danych wrazliwych
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+      MYSQL_USER_FILE: /run/secrets/mysql_user
+      MYSQL_PASSWORD_FILE: /run/secrets/mysql_password
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - backend
+    secrets:
+      - mysql_root_password
+      - mysql_user
+      - mysql_password
+    restart: unless-stopped
+
+  phpmyadmin:
+    image: phpmyadmin:5.2
+    container_name: lemp_phpmyadmin
+    ports:
+      - "6001:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      UPLOAD_LIMIT: 64M
+    depends_on:
+      - mysql
+    networks:
+      - backend
+    restart: unless-stopped
+
+# top-level secrets element - wartosci czytane z plikow w katalogu roboczym
+secrets:
+  mysql_root_password:
+    file: ./secrets/mysql_root_password.txt
+  mysql_password:
+    file: ./secrets/mysql_password.txt
+  mysql_user:
+    file: ./secrets/mysql_user.txt
+
+volumes:
+  db_data:
+
+networks:
+  frontend:
+  backend:

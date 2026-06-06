@@ -1,0 +1,68 @@
+services:
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.1
+    container_name: cadvisor
+    volumes:
+      - /:/rootfs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    restart: unless-stopped
+    expose:
+      - 8080
+    depends_on:
+      - redis
+    networks:
+      - back
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    expose:
+    - 6379
+    networks:
+      - back
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - ./prometheus/:/etc/prometheus/
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    restart: unless-stopped
+    expose:
+      - 9090  
+    depends_on:
+      - cadvisor
+    networks:
+      - back
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning/:/etc/grafana/provisioning/
+    env_file:
+      - ./grafana/grafana.config
+    restart: unless-stopped
+    ports:
+      - 3000:3000
+    depends_on:
+      - prometheus
+    networks:
+      - back
+      - front
+
+volumes:
+    prometheus_data: 
+    grafana_data: 
+
+networks:
+  back:
+    driver: bridge
+  front:
+    driver: bridge

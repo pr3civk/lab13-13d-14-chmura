@@ -1,0 +1,22 @@
+services: 
+  db:
+    image: postgres:alpine
+    volumes:
+    - pg-data:/var/lib/postgresql/data
+    - ./db:/docker-entrypoint-initdb.d
+  
+  pgadmin:
+    image: dpage/pgadmin4
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+
+  web:
+    image: spg51/labx:web 
+    depends_on:
+    - db
+
+volumes: 
+  pg-data:
+  pgadmin-data:
+
+  
